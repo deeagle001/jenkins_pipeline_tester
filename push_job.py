@@ -1,44 +1,59 @@
 #!/usr/bin/python3
 
-import jenkins
+import os, sys
 import time
-
 import xml.etree.ElementTree as ET
 
-server = jenkins.Jenkins('http://localhost:8080', username='admin', password='admin')
-job_name = 'test_pipeline_job'
+import yaml
+import jenkins
 
-with open('Jenkinsfile') as f:
-    script = f.read()
+CONFIG_FILE = 'push_job.yml'
 
-job_info = server.get_job_info(job_name)
-last_build_number = job_info['lastCompletedBuild']['number']
+def main():
+    if not os.path.isfile(CONFIG_FILE):
+        raise FileNotFoundError("The '{}' config file not found!".format(CONFIG_FILE))
 
-xml_config = server.get_job_config(job_name)
-xml_tree_root = ET.fromstring(xml_config)
-xml_tree_root.find('definition').find('script').text = script
-new_xml_config = ET.tostring(xml_tree_root, encoding='unicode', method='xml')
+    with open(CONFIG_FILE) as f:
+        config = yaml.safe_load(f)['config']
 
-server.reconfig_job(job_name, new_xml_config)
-server.build_job(job_name)
+    with open(config['jenkinsfile']) as f:
+        script = f.read()
 
-last_build_number += 1
+    server = jenkins.Jenkins(config['url'],
+        username=config['username'],
+        password=config['password'])
 
-while True:
-    time.sleep(0.5)
-    try:
-        build_info = server.get_build_info(job_name, last_build_number)
-        if build_info['building']:
-            continue
-        log = server.get_build_console_output(job_name, last_build_number)
-        break
-    except jenkins.JenkinsException as ex:
-        if ('number' in str(ex) and
-            'does not exist' in str(ex)):
-            continue
-        else:
-            raise ex
+    job_info = server.get_job_info(config['job'])
+    last_build_number = job_info['lastCompletedBuild']['number']
 
-print(log)
-print(f"Job URL:        {job_info['url']}")
-print(f"Build number:   {last_build_number}")
+    xml_config = server.get_job_config(config['job'])
+    xml_tree_root = ET.fromstring(xml_config)
+    xml_tree_root.find('definition').find('script').text = script
+    new_xml_config = ET.tostring(xml_tree_root, encoding='unicode', method='xml')
+
+    server.reconfig_job(config['job'], new_xml_config)
+    server.build_job(config['job'])
+
+    last_build_number += 1
+
+    while True:
+        time.sleep(0.5)
+        try:
+            build_info = server.get_build_info(config['job'], last_build_number)
+            if build_info['building']:
+                continue
+            log = server.get_build_console_output(config['job'], last_build_number)
+            break
+        except jenkins.JenkinsException as ex:
+            if ('number' in str(ex) and
+                'does not exist' in str(ex)):
+                continue
+            else:
+                raise ex
+
+    print(log)
+    print(f"Job URL:        {job_info['url']}")
+    print(f"Build number:   {last_build_number}")
+
+if __name__ == "__main__":
+    main()

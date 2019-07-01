@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import os, sys
+import itertools
 import time
 import xml.etree.ElementTree as ET
 
@@ -36,20 +37,31 @@ def main():
 
     last_build_number += 1
 
-    while True:
+    for c in itertools.cycle(['|', '/', '-', '\\']):
         time.sleep(0.5)
         try:
             build_info = server.get_build_info(config['job'], last_build_number)
-            if build_info['building']:
-                continue
-            log = server.get_build_console_output(config['job'], last_build_number)
+            print("\r{:<20s}{}".format('In build queue...', 'started'))
             break
         except jenkins.JenkinsException as ex:
             if ('number' in str(ex) and
                 'does not exist' in str(ex)):
+                sys.stdout.write("\r{:<20s}{}".format('In build queue...', c))
+                sys.stdout.flush()
                 continue
             else:
                 raise ex
+
+    for c in itertools.cycle(['|', '/', '-', '\\']):
+        build_info = server.get_build_info(config['job'], last_build_number)
+        if build_info['building']:
+            sys.stdout.write("\r{:<20s}{}".format('Building...', c))
+            sys.stdout.flush()
+            time.sleep(0.5)
+            continue
+        print("\r{:<20s}{}".format('Building...', 'finished'))
+        log = server.get_build_console_output(config['job'], last_build_number)
+        break
 
     print(log)
     print(f"Job URL:        {job_info['url']}")

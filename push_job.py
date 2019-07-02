@@ -37,29 +37,32 @@ def main():
 
     last_build_number += 1
 
-    for c in itertools.cycle(['|', '/', '-', '\\']):
+    load_cycler = itertools.cycle(['|', '/', '-', '\\'])
+    loading_fmt = "\r{:<20s}{}"
+
+    for c in load_cycler:
         time.sleep(0.5)
         try:
             build_info = server.get_build_info(config['job'], last_build_number)
-            print("\r{:<20s}{}".format('In build queue...', 'started'))
+            print(loading_fmt.format('In build queue...', 'started'))
             break
         except jenkins.JenkinsException as ex:
             if ('number' in str(ex) and
                 'does not exist' in str(ex)):
-                sys.stdout.write("\r{:<20s}{}".format('In build queue...', c))
+                sys.stdout.write(loading_fmt.format('In build queue...', c))
                 sys.stdout.flush()
                 continue
             else:
                 raise ex
 
-    for c in itertools.cycle(['|', '/', '-', '\\']):
+    for c in load_cycler:
         build_info = server.get_build_info(config['job'], last_build_number)
         if build_info['building']:
-            sys.stdout.write("\r{:<20s}{}".format('Building...', c))
+            sys.stdout.write(loading_fmt.format('Building...', c))
             sys.stdout.flush()
             time.sleep(0.5)
             continue
-        print("\r{:<20s}{}".format('Building...', 'finished'))
+        print(loading_fmt.format('Building...', 'finished'))
         log = server.get_build_console_output(config['job'], last_build_number)
         break
 

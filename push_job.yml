@@ -1,8 +1,8 @@
 version: "0.1"
 
 config:
-  url: http://localhost:8080
+  url: http://192.168.88.5:8080
   jenkinsfile: Jenkinsfile
-  job: test job
+  job: test_pipeline_job
   username: admin
   password: admin
